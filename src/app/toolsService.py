@@ -32,16 +32,17 @@ class ToolsService:
           self.files.append(file)
           print(file.name)
 
-  def write_file(self, path: str, content: str) -> bool:
+
+
+  def write_file(self, path: str, content: str) -> str:
     file_path = PARENT_DIR / path
     try:
-        os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+        file_path.parent.mkdir(parents=True, exist_ok=True)
         with open(file_path, "w", encoding="utf-8") as f:
             f.write(content)
-        return "success"
+        return f"Successfully wrote to {path}"
     except OSError as e:
-        print(f"Failed to write {path}: {e}")
-        return False
+        return f"Failed to write {path}: {e}"
 
   def create_folder(self, path: str) -> str:
     folder_path = PARENT_DIR / path
