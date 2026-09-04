@@ -3,14 +3,17 @@ from difflib import get_close_matches
 import os
 import subprocess
 import requests
-from src.config import Config
+from .config import Config
+import shutil
+from .agentService import AgentService
 
-PARENT_DIR = Path.home()
+PARENT_DIR = Path.cwd()
 
-class ToolsService:
+class ToolsService(AgentService):
 
   def __init__(self):
      self.files = []
+     self.memory = []
      self.serpapi_key = Config.SERPAPI_KEY
 
   def get_similar(self,path:str,possibilities:list[str],n:int,cutoff:float):
@@ -119,3 +122,65 @@ class ToolsService:
         return formatted
     except Exception as e:
         return f"Search failed: {e}"
+
+  def rename_file(self, path: str, name: str) -> str:
+    old_path = PARENT_DIR / path
+    new_path = old_path.parent / name
+    try:
+        if not old_path.exists():
+            return f"File not found: {path}"
+        if new_path.exists():
+            return f"A file already exists at {name}"
+        old_path.rename(new_path)
+        return f"Successfully renamed {path} to {name}"
+    except OSError as e:
+        return f"Failed to rename {path}: {e}"
+
+  def copy_file(self,path:str,dest:str):
+    old_path = PARENT_DIR / path
+    new_path = PARENT_DIR / dest
+
+    if not old_path.exists():
+       return f'File {path} does not exists'
+
+    if new_path.exists():
+       return f"file with that the name {dest} already exists"
+
+    shutil.copyfile(old_path,new_path)
+    return f"Successfully copied {path} to {dest}"
+
+  def move_file(self,path:str,dest:str):
+     old_path = PARENT_DIR / path
+     new_path = PARENT_DIR / dest
+
+     try:
+        if os.path.exists(new_path):
+           return f'file {dest} already exists'
+        else:
+           os.replace(old_path,new_path)
+           return f"successfully moved file {old_path} to the {new_path}"
+     except FileNotFoundError:
+        return f'{path} was not found'
+
+  def delete_file(self, path: str):
+    file_path = PARENT_DIR / path
+
+    if not file_path.exists():
+        yield f"File not found: {path}"
+        return
+
+    if not file_path.is_file():
+        yield f"{path} is not a file"
+        return
+
+    answer = yield f"Are you sure you want to delete {path}? (y/n)"
+
+    if answer is None or answer.strip().lower() != "y":
+        yield f"Deletion cancelled: {path}"
+        return
+
+    try:
+        os.remove(file_path)
+        yield f"Successfully deleted: {path}"
+    except OSError as e:
+        yield f"Failed to delete {path}: {e}"
