@@ -5,10 +5,11 @@ import subprocess
 import requests
 from .config import Config
 import shutil
+from .agentService import AgentService
 
 PARENT_DIR = Path.cwd()
 
-class ToolsService:
+class ToolsService(AgentService):
 
   def __init__(self):
      self.files = []
