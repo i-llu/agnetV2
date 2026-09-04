@@ -3,15 +3,16 @@ from difflib import get_close_matches
 import os
 import subprocess
 import requests
-from src.config import Config
+from .config import Config
 import shutil
 
-PARENT_DIR = Path.home() / "GOOD.IDEAS"
+PARENT_DIR = Path.cwd()
 
 class ToolsService:
 
   def __init__(self):
      self.files = []
+     self.memory = []
      self.serpapi_key = Config.SERPAPI_KEY
 
   def get_similar(self,path:str,possibilities:list[str],n:int,cutoff:float):

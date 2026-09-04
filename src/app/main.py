@@ -30,7 +30,8 @@ SYSTEM_PROMPT = (
     "sacrifice accuracy or usefulness for personality — the charm is a bonus, not "
     "a replacement for actually helping."
 )
-memory = [{"role": "system","content":SYSTEM_PROMPT}]
+
+service.memory.append({"role": "system","content":SYSTEM_PROMPT})
 overview_log = []
 
 TOOL_EMOJI = {
@@ -202,7 +203,7 @@ class AgentApp(App):
             f"[bold #DA3450]›[/bold #DA3450] [bold #c9d1d9]{user_input}[/bold #c9d1d9]"
         )
 
-        memory.append({
+        service.memory.append({
             "role": "user",
             "content": user_input,
         })
@@ -220,7 +221,7 @@ class AgentApp(App):
 
             response_stream = chat(
                 model=MODEL,
-                messages=memory,
+                messages=service.memory,
                 tools=tools,
                 stream=True,
             )
@@ -254,7 +255,7 @@ class AgentApp(App):
             elapsed = time.perf_counter() - start
             self.turn_count += 1
 
-            memory.append({
+            service.memory.append({
                 "role": "assistant",
                 "content": accumulated_text,
                 "tool_calls": tool_calls,
@@ -322,7 +323,7 @@ class AgentApp(App):
                 else:
                     result = f"Unknown tool: {tool_name}"
 
-                memory.append({
+                service.memory.append({
                     "role": "tool",
                     "content": str(result),  # safety net: tool content must be a string
                 })
