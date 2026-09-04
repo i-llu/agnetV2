@@ -6,14 +6,16 @@ import requests
 from .config import Config
 import shutil
 from .agentService import AgentService
+import time
 
 PARENT_DIR = Path.cwd()
 
 class ToolsService(AgentService):
 
   def __init__(self):
+     super().__init__()
+
      self.files = []
-     self.memory = []
      self.serpapi_key = Config.SERPAPI_KEY
 
   def get_similar(self,path:str,possibilities:list[str],n:int,cutoff:float):
@@ -184,3 +186,13 @@ class ToolsService(AgentService):
         yield f"Successfully deleted: {path}"
     except OSError as e:
         yield f"Failed to delete {path}: {e}"
+
+
+  def open_tabs(self, urls: list[str]) -> str:
+    command = ["google-chrome", "--new-window", *urls]
+
+    try:
+        subprocess.Popen(command)
+        return f"Opened {len(urls)} tabs"
+    except OSError as e:
+        return f"Failed to open tabs: {e}"

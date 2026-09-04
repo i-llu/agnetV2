@@ -175,4 +175,24 @@ tools = [
         },
     },
 },
+{
+    "type": "function",
+    "function": {
+        "name": "open_tabs",
+        "description": "Open multiple URLs as tabs in one new Google Chrome window.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "urls": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "description": "List of complete URLs to open."
+                }
+            },
+            "required": ["urls"]
+        }
+    }
+}
 ]
