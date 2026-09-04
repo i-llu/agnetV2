@@ -12,8 +12,9 @@ PARENT_DIR = Path.cwd()
 class ToolsService(AgentService):
 
   def __init__(self):
+     super().__init__()
+
      self.files = []
-     self.memory = []
      self.serpapi_key = Config.SERPAPI_KEY
 
   def get_similar(self,path:str,possibilities:list[str],n:int,cutoff:float):

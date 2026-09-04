@@ -50,7 +50,7 @@ def run_agent(user_input):
                 full_thinking += message.thinking
 
             if message.content:
-                print("\n",message.content, end="",flush=True)
+                print(message.content, end="",flush=True)
                 full_content += message.content
 
             if message.tool_calls:

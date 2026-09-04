@@ -1,4 +1,6 @@
-class AgentService():
+class AgentService:
+  def __init__(self):
+    self.memory = []
 
   def clear_memory(self):
     sys_mem = self.memory[0]
