@@ -1,4 +1,5 @@
 import time
+import threading
 
 from ollama import chat
 from textual import work
@@ -33,11 +34,15 @@ memory = [{"role": "system","content":SYSTEM_PROMPT}]
 overview_log = []
 
 TOOL_EMOJI = {
-    "read_file": "📖",
-    "write_file": "📝",
-    "execute_python": "🐍",
-    "web_search": "🔎",
-    "create_folder": "📁",
+    "read_file": "📖 ",
+    "write_file": "📝 ",
+    "execute_python": "🐍 ",
+    "web_search": "🔎 ",
+    "create_folder": "📁 ",
+    "rename_file":"📄 ",
+    "copy_file":"📄-📄 ",
+    "move_file":"📁-➡️ ",
+    "delete_file":"🗑️ "
 }
 
 # Rotating busy indicator, Hermes-style
@@ -112,12 +117,13 @@ class AgentApp(App):
     busy = reactive(False)
     busy_frame = reactive(0)
 
+    def __init__(self):
+        super().__init__()
+        self._pending_confirmation: threading.Event | None = None
+        self._confirmation_answer: str = ""
+
     def compose(self) -> ComposeResult:
         yield Static(self._banner_text(), id="banner")
-        # CHANGED: one scrolling container holds every message widget —
-        # user turns, agent replies, and tool-call lines — all in the
-        # same flow, in the order they happen. No separate "live" widget
-        # that later has to jump somewhere else.
         yield VerticalScroll(id="chat-scroll")
         yield Static(self._status_text(), id="statusbar")
         yield Input(placeholder="Ready — type a message and press Enter (or 'exit' to quit)...")
@@ -152,9 +158,6 @@ class AgentApp(App):
             self.busy_frame += 1
             self.query_one("#statusbar", Static).update(self._status_text())
 
-    # CHANGED: small helper — mounts a new Static message widget at the
-    # bottom of the scroll container and scrolls down to reveal it.
-    # Returns the widget so callers (like streaming) can update it later.
     def _add_message(self, text: str) -> Static:
         chat_scroll = self.query_one("#chat-scroll", VerticalScroll)
         widget = Static(text, classes="msg")
@@ -162,9 +165,31 @@ class AgentApp(App):
         chat_scroll.scroll_end(animate=False)
         return widget
 
+    # NEW: blocks the worker thread until the user types a y/n answer
+    def ask_confirmation(self, question: str) -> str:
+        self._pending_confirmation = threading.Event()
+        self.call_from_thread(
+            self._add_message,
+            f"[bold #DA3450]⚠ {question}[/bold #DA3450]",
+        )
+        self.call_from_thread(
+            lambda: setattr(self.query_one(Input), "placeholder", "y/n...")
+        )
+        self._pending_confirmation.wait()
+        return self._confirmation_answer
+
     def on_input_submitted(self, event: Input.Submitted) -> None:
         user_input = event.value.strip()
         self.query_one(Input).value = ""
+
+        # NEW: route the answer to the waiting confirmation instead of chat
+        if self._pending_confirmation is not None:
+            self._add_message(f"[bold #DA3450]›[/bold #DA3450] {user_input}")
+            self._confirmation_answer = user_input
+            self._pending_confirmation.set()
+            self._pending_confirmation = None
+            self.query_one(Input).placeholder = "Ready — type a message and press Enter (or 'exit' to quit)..."
+            return
 
         if not user_input:
             return
@@ -202,8 +227,6 @@ class AgentApp(App):
 
             accumulated_text = ""
             tool_calls = None
-            # CHANGED: reference to the widget currently being streamed
-            # into. Created lazily on the first chunk of actual text.
             response_widget = None
 
             for chunk in response_stream:
@@ -212,10 +235,6 @@ class AgentApp(App):
                     accumulated_text += piece
 
                     if response_widget is None:
-                        # CHANGED: mount the widget ONCE, in place, as
-                        # part of the normal message flow — not off to
-                        # the side. Everything after this just updates
-                        # this same widget, so it never has to "move".
                         response_widget = self.call_from_thread(
                             self._add_message,
                             f"[bold #DA3450]●[/bold #DA3450] {accumulated_text}",
@@ -241,15 +260,12 @@ class AgentApp(App):
                 "tool_calls": tool_calls,
             })
 
-            # No tool call — final answer
             if not tool_calls:
                 overview_log.append({
                     "user_input": user_input,
                     "tool": None,
                     "time": elapsed,
                 })
-                # CHANGED: just append the timing to the SAME widget that
-                # was already streaming — no second write, no teleport.
                 if response_widget is not None:
                     self.call_from_thread(
                         response_widget.update,
@@ -257,8 +273,6 @@ class AgentApp(App):
                         f"[#DA3450]({elapsed:.2f}s)[/#DA3450]",
                     )
                 else:
-                    # Model produced no streamed text at all (rare) —
-                    # still show something.
                     self.call_from_thread(
                         self._add_message,
                         f"[bold #DA3450]●[/bold #DA3450] {accumulated_text}  "
@@ -267,7 +281,6 @@ class AgentApp(App):
                 self.call_from_thread(self._finish_turn)
                 break
 
-            # Model requested tool(s)
             for tool_call in tool_calls:
                 tool_name = tool_call.function.name
                 arguments = tool_call.function.arguments
@@ -289,6 +302,23 @@ class AgentApp(App):
                     result = service.web_search(**arguments)
                 elif tool_name == "create_folder":
                     result = service.create_folder(**arguments)
+                elif tool_name == "rename_file":
+                    result = service.rename_file(**arguments)
+                elif tool_name == "copy_file":
+                    result = service.copy_file(**arguments)
+                elif tool_name == "move_file":
+                    result = service.move_file(**arguments)
+                elif tool_name == "delete_file":
+                    gen = service.delete_file(**arguments)
+                    msg = next(gen)
+                    if msg.startswith("Are you sure"):
+                        answer = self.ask_confirmation(msg)
+                        try:
+                            result = gen.send(answer)
+                        except StopIteration:
+                            result = "Deletion flow ended unexpectedly"
+                    else:
+                        result = msg
                 else:
                     result = f"Unknown tool: {tool_name}"
 
