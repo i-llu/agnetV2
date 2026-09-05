@@ -12,216 +12,253 @@ PARENT_DIR = Path.cwd()
 
 class ToolsService(AgentService):
 
-  def __init__(self):
-     super().__init__()
+    def __init__(self):
+        super().__init__()
 
-     self.files = []
-     self.serpapi_key = Config.SERPAPI_KEY
+        self.files = []
+        self.serpapi_key = Config.SERPAPI_KEY
 
-  def get_similar(self,path:str,possibilities:list[str],n:int,cutoff:float):
-     similar_files = get_close_matches(path,possibilities,n,cutoff)
+    def get_similar(self,path:str,possibilities:list[str],n:int,cutoff:float):
+        similar_files = get_close_matches(path,possibilities,n,cutoff)
 
-     if similar_files:
-      return (
-          f"file: {path} was not found. "
-          f"Did you mean: {', '.join(similar_files)}?"
-      )
+        if similar_files:
+            return (
+                f"file: {path} was not found. "
+                f"Did you mean: {', '.join(similar_files)}?"
+            )
 
-  def see_all_files(self,path:str):
-     for file in (PARENT_DIR / path).parent.iterdir():
+    def see_all_files(self,path:str):
+        for file in (PARENT_DIR / path).parent.iterdir():
+            if file.name.startswith("."):
+                continue
 
-        if file.name.startswith("."):
-          continue
-
-        if file.is_file():
-          self.files.append(file)
-          print(file.name)
-
+            if file.is_file():
+                self.files.append(file)
+                print(file.name)
 
 
-  def write_file(self, path: str, content: str) -> str:
-    file_path = PARENT_DIR / path
-    try:
-        file_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(file_path, "w", encoding="utf-8") as f:
-            f.write(content)
-        return f"Successfully wrote to {path}"
-    except OSError as e:
-        return f"Failed to write {path}: {e}"
+# HELPER
 
-  def create_folder(self, path: str) -> str:
-    folder_path = PARENT_DIR / path
-    try:
-        folder_path.mkdir(parents=True, exist_ok=True)
-        return f"Successfully created folder: {path}"
-    except OSError as e:
-        return f"Failed to create folder {path}: {e}"
+    def clarify(self, content: str):
+        answer = yield content
+        return answer
 
-  def read_file(self, path: str):
-    self.see_all_files(path)
 
-    file_path = PARENT_DIR / path
+# FILE MANIPULATION FUNCTIONS
 
-    if file_path.is_file():
-       with open(file_path, "r", encoding="utf-8") as file:
-          return file.read()
+    def write_file(self, path: str, content: str) -> str:
+        file_path = PARENT_DIR / path
+        try:
+            file_path.parent.mkdir(parents=True, exist_ok=True)
+            with open(file_path, "w", encoding="utf-8") as f:
+                f.write(content)
+            return f"Successfully wrote to {path}"
+        except OSError as e:
+            return f"Failed to write {path}: {e}"
 
-    file_names = [file.name for file in self.files]
+    def create_folder(self, path: str) -> str:
+        folder_path = PARENT_DIR / path
+        try:
+            folder_path.mkdir(parents=True, exist_ok=True)
+            return f"Successfully created folder: {path}"
+        except OSError as e:
+            return f"Failed to create folder {path}: {e}"
 
-    similar_files = self.get_similar(path,file_names,3,0.4)
+    def read_file(self, path: str):
+        self.see_all_files(path)
 
-    if not similar_files:
-      return f'files {path} was not found and no similar files were found'
+        file_path = PARENT_DIR / path
 
-  def execute_python(self, path: str, args:list[str] | None = None) -> str:
-    try:
-      command = ["python3", str(PARENT_DIR / path)]
+        if file_path.is_file():
+            with open(file_path, "r", encoding="utf-8") as file:
+                return file.read()
 
-      if args:
-         command.extend(args)
+        file_names = [file.name for file in self.files]
 
-      result = subprocess.run(
-          command,
-          capture_output=True,
-          text=True,
-          timeout=30,
-      )
+        similar_files = self.get_similar(path,file_names,3,0.4)
 
-      return (
-          f"Exit code: {result.returncode}\n"
-          f"STDOUT:\n{result.stdout}\n"
-          f"STDERR:\n{result.stderr}"
-      )
+        if not similar_files:
+            return f'files {path} was not found and no similar files were found'
 
-    except subprocess.TimeoutExpired:
-      return f"Execution timed out after 30 seconds."
+    def rename_file(self, path: str, name: str) -> str:
+        old_path = PARENT_DIR / path
+        new_path = old_path.parent / name
+        try:
+            if not old_path.exists():
+                return f"File not found: {path}"
+            if new_path.exists():
+                return f"A file already exists at {name}"
+            old_path.rename(new_path)
+            return f"Successfully renamed {path} to {name}"
+        except OSError as e:
+            return f"Failed to rename {path}: {e}"
 
-    except OSError as e:
-      return f"Failed to execute {path}: {e}"
+    def copy_file(self,path:str,dest:str):
+        old_path = PARENT_DIR / path
+        new_path = PARENT_DIR / dest
 
-  def web_search(self, query: str) -> str:
-    try:
-        response = requests.get(
-            "https://serpapi.com/search",
-            params={
-                "q": query,
-                "api_key": self.serpapi_key,
-                "engine": "google",
-            },
-            timeout=10,
-        )
-        response.raise_for_status()
-        data = response.json()
-
-        results = data.get("organic_results", [])[:5]
-        if not results:
-            return "No results found."
-
-        formatted = "\n\n".join(
-            f"{r.get('title')}\n{r.get('link')}\n{r.get('snippet', '')}"
-            for r in results
-        )
-        return formatted
-    except Exception as e:
-        return f"Search failed: {e}"
-
-  def rename_file(self, path: str, name: str) -> str:
-    old_path = PARENT_DIR / path
-    new_path = old_path.parent / name
-    try:
         if not old_path.exists():
-            return f"File not found: {path}"
+            return f'File {path} does not exists'
+
         if new_path.exists():
-            return f"A file already exists at {name}"
-        old_path.rename(new_path)
-        return f"Successfully renamed {path} to {name}"
-    except OSError as e:
-        return f"Failed to rename {path}: {e}"
+            return f"file with that the name {dest} already exists"
 
-  def copy_file(self,path:str,dest:str):
-    old_path = PARENT_DIR / path
-    new_path = PARENT_DIR / dest
+        shutil.copyfile(old_path,new_path)
+        return f"Successfully copied {path} to {dest}"
 
-    if not old_path.exists():
-       return f'File {path} does not exists'
+    def move_file(self,path:str,dest:str):
+        old_path = PARENT_DIR / path
+        new_path = PARENT_DIR / dest
 
-    if new_path.exists():
-       return f"file with that the name {dest} already exists"
+        try:
+            if os.path.exists(new_path):
+                return f'file {dest} already exists'
+            else:
+                os.replace(old_path,new_path)
+                return f"successfully moved file {old_path} to the {new_path}"
+        except FileNotFoundError:
+            return f'{path} was not found'
 
-    shutil.copyfile(old_path,new_path)
-    return f"Successfully copied {path} to {dest}"
+    def delete_file(self, path: str):
+        file_path = PARENT_DIR / path
 
-  def move_file(self,path:str,dest:str):
-     old_path = PARENT_DIR / path
-     new_path = PARENT_DIR / dest
+        if not file_path.exists():
+            yield f"File not found: {path}"
+            return
 
-     try:
-        if os.path.exists(new_path):
-           return f'file {dest} already exists'
-        else:
-           os.replace(old_path,new_path)
-           return f"successfully moved file {old_path} to the {new_path}"
-     except FileNotFoundError:
-        return f'{path} was not found'
+        if not file_path.is_file():
+            yield f"{path} is not a file"
+            return
 
-  def delete_file(self, path: str):
-    file_path = PARENT_DIR / path
+        playsound("sounds/ter_sound.mp3")
+        answer = yield f"Are you sure you want to delete {path}? (y/n)"
 
-    if not file_path.exists():
-        yield f"File not found: {path}"
-        return
+        if answer is None or answer.strip().lower() != "y":
+            yield f"Deletion cancelled: {path}"
+            return
 
-    if not file_path.is_file():
-        yield f"{path} is not a file"
-        return
-
-    playsound("sounds/ter_sound.mp3")
-    answer = yield f"Are you sure you want to delete {path}? (y/n)"
-
-    if answer is None or answer.strip().lower() != "y":
-        yield f"Deletion cancelled: {path}"
-        return
-
-    try:
-        os.remove(file_path)
-        yield f"Successfully deleted: {path}"
-    except OSError as e:
-        yield f"Failed to delete {path}: {e}"
+        try:
+            os.remove(file_path)
+            yield f"Successfully deleted: {path}"
+        except OSError as e:
+            yield f"Failed to delete {path}: {e}"
 
 
-  def open_tabs(self, urls: list[str]) -> str:
-    command = ["google-chrome", "--new-window", *urls]
 
-    try:
-        subprocess.Popen(command)
-        return f"Opened {len(urls)} tabs"
-    except OSError as e:
-        return f"Failed to open tabs: {e}"
+# MORE
+
+    def execute_python(self, path: str, args:list[str] | None = None) -> str:
+        try:
+            command = ["python3", str(PARENT_DIR / path)]
+
+            if args:
+                command.extend(args)
+
+            result = subprocess.run(
+                command,
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+
+            return (
+                f"Exit code: {result.returncode}\n"
+                f"STDOUT:\n{result.stdout}\n"
+                f"STDERR:\n{result.stderr}"
+            )
+
+        except subprocess.TimeoutExpired:
+            return f"Execution timed out after 30 seconds."
+
+        except OSError as e:
+            return f"Failed to execute {path}: {e}"
+
+    def web_search(self, query: str) -> str:
+        try:
+            response = requests.get(
+                "https://serpapi.com/search",
+                params={
+                    "q": query,
+                    "api_key": self.serpapi_key,
+                    "engine": "google",
+                },
+                timeout=10,
+            )
+            response.raise_for_status()
+            data = response.json()
+
+            results = data.get("organic_results", [])[:5]
+            if not results:
+                return "No results found."
+
+            formatted = "\n\n".join(
+                f"{r.get('title')}\n{r.get('link')}\n{r.get('snippet', '')}"
+                for r in results
+            )
+            return formatted
+        except Exception as e:
+            return f"Search failed: {e}"
 
 
-  def run_shell_command(self, command: str):
-    playsound("sounds/ter_sound.mp3")
-    answer = yield f"The agent wants to run: {command}\nAllow it? (y/n)"
 
-    if answer is None or answer.strip().lower() != "y":
-        yield "Command cancelled by user."
-        return
+#            SHELL COMMANDS
 
-    try:
-        result = subprocess.run(
-            command,
-            shell=True,
-            cwd=PARENT_DIR,
-            capture_output=True,
-            text=True,
-            timeout=120,
-        )
-        yield (
-            f"Exit code: {result.returncode}\n"
-            f"STDOUT:\n{result.stdout}\n"
-            f"STDERR:\n{result.stderr}"
-        )
-    except subprocess.TimeoutExpired:
-        yield "Command timed out after 120 seconds."
-    except OSError as e:
-        yield f"Failed to run command: {e}"
+    def open_tabs(self, urls: list[str]) -> str:
+        command = ["google-chrome", "--new-window", *urls]
+
+        try:
+            subprocess.Popen(command)
+            return f"Opened {len(urls)} tabs"
+        except OSError as e:
+            return f"Failed to open tabs: {e}"
+
+    def run_shell_command(self, command: str):
+        playsound("sounds/ter_sound.mp3")
+        answer = yield f"The agent wants to run: {command}\nAllow it? (y/n)"
+
+        if answer is None or answer.strip().lower() != "y":
+            yield "Command cancelled by user."
+            return
+
+        try:
+            result = subprocess.run(
+                command,
+                shell=True,
+                cwd=PARENT_DIR,
+                capture_output=True,
+                text=True,
+                timeout=120,
+            )
+            yield (
+                f"Exit code: {result.returncode}\n"
+                f"STDOUT:\n{result.stdout}\n"
+                f"STDERR:\n{result.stderr}"
+            )
+        except subprocess.TimeoutExpired:
+            yield "Command timed out after 120 seconds."
+        except OSError as e:
+            yield f"Failed to run command: {e}"
+
+
+# USER
+
+    # TODOS
+    def delete_todo_by_id(self,id:int):
+        self.todos = [todo for todo in self.todos if todo["id"] != id]
+
+    def add_todos(self,todos:list[str]):
+        for todo in todos:
+            self.todos.append(
+                {
+                    "id":self.next_todo_id,
+                    "content":todo,
+                }
+            )
+            self.next_todo_id += 1
+
+    def clear_todos(self):
+        return self.todos.clear()
+
+    def show_todos(self):
+        return self.todos
+

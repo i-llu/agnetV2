@@ -11,7 +11,7 @@ from textual.reactive import reactive
 from textual.widgets import Footer, Input, Static
 
 from .toolsService import ToolsService
-from .tools import tools
+from .tools_schema import tools
 
 BANNER = subprocess.check_output(["figlet", "KIWI - AGENT"],text=True,)
 MODEL = "qwen3:4b"
@@ -27,25 +27,45 @@ overview_log = []
 TOOL_EMOJI = service.tools
 
 tool_handlers = {
+# FILES
     "read_file": service.read_file,
     "write_file": service.write_file,
-    "execute_python": service.execute_python,
-    "web_search": service.web_search,
-    "create_folder": service.create_folder,
     "rename_file": service.rename_file,
     "copy_file": service.copy_file,
     "move_file": service.move_file,
+# FOLDERS
+    "create_folder": service.create_folder,
+
+    "execute_python": service.execute_python,
+
     "open_tabs": service.open_tabs,
+# WEB
+    "web_search": service.web_search,
+
+
+    # TODOs
+    "add_todos": service.add_todos,
+    "delete_todo": service.delete_todo_by_id,
+    "clear_todos":service.clear_todos,
+    "show_todos": service.show_todos,
 }
 
 SLASH_COMMANDS = {
     "/help": "Shows available commands",
+
     "/clear": "Clear conversation memory (keeps personality)",
     "/clear -a":"Clears all memory with the persona",
+
     "/memory":"Shows current memory",
+
     "/tools":"Shows available tools",
+
     "/persona":"Shows personality of the agent",
-    "/scr -c":"Clears the screen"
+
+    "/scr -c":"Clears the screen",
+
+    "/todos":"Shows current todo list",
+    "/todo -c":"Clear all todos"
 }
 
 # Rotating busy indicator, Hermes-style
@@ -255,6 +275,17 @@ class AgentApp(App):
         self.query_one("#statusbar", Static).update(self._status_text())
         self.run_agent(user_input)
 
+    def ask_open_question(self, question: str) -> str:
+        self._pending_confirmation = threading.Event()
+        self.call_from_thread(
+            self._add_message,
+            f"[bold #DA3450]❓ {question}[/bold #DA3450]",
+        )
+        self.call_from_thread(
+            lambda: setattr(self.query_one(Input), "placeholder", "Type your answer...")
+        )
+        self._pending_confirmation.wait()
+        return self._confirmation_answer
 
     def _clear_chat_screen(self) -> None:
         chat_scroll = self.query_one("#chat-scroll", VerticalScroll)
@@ -284,6 +315,14 @@ class AgentApp(App):
                 self._add_message(f"[bold #DA3450] ♆ [/bold #DA3450] {service.personality()}")
             case "/scr -c":
                 self._clear_chat_screen()
+
+            case "/todos":
+                self._add_message(f"[bold #DA3450] ♆ [/bold #DA3450] {service.show_todos()}")
+
+            case "/todo -c":
+                service.clear_todos()
+                self._add_message("[bold #DA3450][✓][/bold #DA3450] TODOS cleared")
+
             case _:
                 self._add_message(
                     f"[bold #DA3450]✓[/bold #DA3450] Unknown command {user_input}, try /help to see all commands"
@@ -377,7 +416,15 @@ class AgentApp(App):
             service.memory.append({
                 "role": "assistant",
                 "content": answer_text,
-                "tool_calls": tool_calls,
+                "tool_calls": [
+                    {
+                        "function": {
+                            "name": call.function.name,
+                            "arguments": call.function.arguments,
+                        }
+                    }
+                    for call in tool_calls
+                ] if tool_calls else [],
             })
 
             if not tool_calls:
@@ -428,6 +475,21 @@ class AgentApp(App):
                             result = "Deletion flow ended unexpectedly"
                     else:
                         result = msg
+
+                elif tool_name == "clarify":
+                    gen = service.clarify(**arguments)
+
+                    question = next(gen)
+
+                    answer = self.ask_open_question(question)
+
+                    try:
+                        result = gen.send(answer)
+                    except StopIteration as e:
+                        result = e.value
+
+                    service.memory.append({"role": "assistant","content": question, })
+                    service.memory.append({"role": "user","content": answer,})
 
                 elif tool_name == "run_shell_command":
                     gen = service.run_shell_command(**arguments)

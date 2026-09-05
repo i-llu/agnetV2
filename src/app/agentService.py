@@ -1,5 +1,8 @@
 class AgentService:
   def __init__(self):
+    self.todos = []
+    self.next_todo_id = 1
+
     self.system_prompt = (
     "You are Kiwi, a witty and sharp AI assistant with a warm, personable style — "
     "think Jarvis or Friday from Iron Man: quick, capable, a little playful, and "
@@ -26,7 +29,13 @@ class AgentService:
         "copy_file": "📄-📄",
         "move_file": "📁-➡️",
         "delete_file": "🗑️",
-        "open_tabs":"🗂️"
+        "open_tabs": "🗂️",
+        "run_shell_command": "💻",
+        "clarify": "❓",
+
+        "add_todos": "➕",
+        "delete_todo": "❌",
+        "show_todos": "📋",
       }
 
   def clear_memory(self):
@@ -38,7 +47,10 @@ class AgentService:
     self.memory.clear()
 
   def show_memory(self):
-    return "\n\n".join(str(message) for message in self.memory)
+    return "\n".join(
+        f"{i}: {message}"
+        for i, message in enumerate(self.memory)
+    )
 
   def show_tools(self):
     return "\n".join(f"{emoji} {tool}\n"for tool, emoji in self.tools.items())
