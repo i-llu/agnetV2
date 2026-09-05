@@ -3,6 +3,7 @@
     "genai",
     "huggingface",
     "ollama",
+    "playsound",
     "SERPAPI"
   ]
 }

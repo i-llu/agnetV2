@@ -162,7 +162,7 @@ tools = [
     "type": "function",
     "function": {
         "name": "delete_file",
-        "description": "Delete a file after confirming with the user. Only works on files, not folders.",
+        "description": "Delete a file Only works on files, not folders.",
         "parameters": {
             "type": "object",
             "properties": {
@@ -194,5 +194,26 @@ tools = [
             "required": ["urls"]
         }
     }
-}
+},
+{
+    "type": "function",
+    "function": {
+        "name": "run_shell_command",
+        "description": (
+            "Run an arbitrary shell command inside the current project directory. "
+            "This project uses uv for Python package management — prefer 'uv add <package>' "
+            "over 'pip install <package>', and 'uv remove <package>' over 'pip uninstall'. "
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "command": {
+                    "type": "string",
+                    "description": "The full shell command to run.",
+                }
+            },
+            "required": ["command"],
+        },
+    },
+},
 ]

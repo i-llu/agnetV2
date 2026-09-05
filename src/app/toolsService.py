@@ -6,7 +6,7 @@ import requests
 from .config import Config
 import shutil
 from .agentService import AgentService
-import time
+from playsound3 import playsound
 
 PARENT_DIR = Path.cwd()
 
@@ -175,6 +175,7 @@ class ToolsService(AgentService):
         yield f"{path} is not a file"
         return
 
+    playsound("sounds/ter_sound.mp3")
     answer = yield f"Are you sure you want to delete {path}? (y/n)"
 
     if answer is None or answer.strip().lower() != "y":
@@ -196,3 +197,31 @@ class ToolsService(AgentService):
         return f"Opened {len(urls)} tabs"
     except OSError as e:
         return f"Failed to open tabs: {e}"
+
+
+  def run_shell_command(self, command: str):
+    playsound("sounds/ter_sound.mp3")
+    answer = yield f"The agent wants to run: {command}\nAllow it? (y/n)"
+
+    if answer is None or answer.strip().lower() != "y":
+        yield "Command cancelled by user."
+        return
+
+    try:
+        result = subprocess.run(
+            command,
+            shell=True,
+            cwd=PARENT_DIR,
+            capture_output=True,
+            text=True,
+            timeout=120,
+        )
+        yield (
+            f"Exit code: {result.returncode}\n"
+            f"STDOUT:\n{result.stdout}\n"
+            f"STDERR:\n{result.stderr}"
+        )
+    except subprocess.TimeoutExpired:
+        yield "Command timed out after 120 seconds."
+    except OSError as e:
+        yield f"Failed to run command: {e}"

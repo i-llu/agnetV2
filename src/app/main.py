@@ -14,7 +14,8 @@ from .toolsService import ToolsService
 from .tools import tools
 
 BANNER = subprocess.check_output(["figlet", "KIWI - AGENT"],text=True,)
-MODEL = "isotnek/qwen3.5:9B-Unsloth-UD-Q4_K_XL"
+MODEL = "qwen3:4b"
+#MODEL = "isotnek/qwen3.5:9B-Unsloth-UD-Q4_K_XL"
 
 service = ToolsService()
 
@@ -44,6 +45,7 @@ SLASH_COMMANDS = {
     "/memory":"Shows current memory",
     "/tools":"Shows available tools",
     "/persona":"Shows personality of the agent",
+    "/scr -c":"Clears the screen"
 }
 
 # Rotating busy indicator, Hermes-style
@@ -253,6 +255,11 @@ class AgentApp(App):
         self.query_one("#statusbar", Static).update(self._status_text())
         self.run_agent(user_input)
 
+
+    def _clear_chat_screen(self) -> None:
+        chat_scroll = self.query_one("#chat-scroll", VerticalScroll)
+        chat_scroll.remove_children()
+
     def slash_commands(self, user_input: str) -> None:
         match user_input.strip().lower():
             case "/help":
@@ -275,7 +282,8 @@ class AgentApp(App):
                 self._add_message("[bold #DA3450][✓] Available tools:[/bold #DA3450]\n"+ tools)
             case "/persona":
                 self._add_message(f"[bold #DA3450] ♆ [/bold #DA3450] {service.personality()}")
-
+            case "/scr -c":
+                self._clear_chat_screen()
             case _:
                 self._add_message(
                     f"[bold #DA3450]✓[/bold #DA3450] Unknown command {user_input}, try /help to see all commands"
@@ -420,6 +428,19 @@ class AgentApp(App):
                             result = "Deletion flow ended unexpectedly"
                     else:
                         result = msg
+
+                elif tool_name == "run_shell_command":
+                    gen = service.run_shell_command(**arguments)
+                    msg = next(gen)
+                    if msg.startswith("The agent wants to run:"):
+                        answer = self.ask_confirmation(msg)
+                        try:
+                            result = gen.send(answer)
+                        except StopIteration:
+                            result = "Command flow ended unexpectedly"
+                    else:
+                        result = msg
+
                 else:
                     result = f"Unknown tool: {tool_name}"
 
