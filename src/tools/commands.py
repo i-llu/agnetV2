@@ -1,4 +1,4 @@
-class AgentService:
+class CommandsService:
   def __init__(self):
     self.todos = []
     self.next_todo_id = 1
