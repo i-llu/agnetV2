@@ -4,7 +4,9 @@ from ollama import chat
 from .toolsService import ToolsService
 from .tools_schema import tools
 
-MODEL = "qwen3:4b"
+MODEL = "qwen2.5:3b-instruct"
+
+#MODEL = "qwen3:4b"
 #MODEL = "isotnek/qwen3.5:9B-Unsloth-UD-Q4_K_XL"
 
 

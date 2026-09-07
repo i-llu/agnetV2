@@ -19,6 +19,7 @@ class ShellService:
     playsound("sounds/ter_sound.mp3")
     answer = yield f"The agent wants to run: {command}\nAllow it? (y/n)"
 
+
     if answer is None or answer.strip().lower() != "y":
         yield "Command cancelled by user."
         return

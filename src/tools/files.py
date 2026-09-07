@@ -106,9 +106,9 @@ class FilesService:
     if not file_path.is_file():
         yield f"{path} is not a file"
         return
-
     playsound("sounds/ter_sound.mp3")
     answer = yield f"Are you sure you want to delete {path}? (y/n)"
+
 
     if answer is None or answer.strip().lower() != "y":
         yield f"Deletion cancelled: {path}"
