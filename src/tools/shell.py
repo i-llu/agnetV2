@@ -3,6 +3,7 @@ from playsound3 import playsound
 from pathlib import Path
 
 PARENT_DIR = Path.cwd()
+SOUND_DIR = Path(__file__).parent.parent / "sounds"
 
 class ShellService:
 
@@ -16,7 +17,7 @@ class ShellService:
         return f"Failed to open tabs: {e}"
 
   def run_shell_command(self, command: str):
-    playsound("sounds/ter_sound.mp3")
+    playsound(f"{SOUND_DIR}/ter_sound.mp3")
     answer = yield f"The agent wants to run: {command}\nAllow it? (y/n)"
 
 

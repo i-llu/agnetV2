@@ -10,20 +10,22 @@ from textual.containers import VerticalScroll
 from textual.reactive import reactive
 from textual.widgets import Footer, Input, Static
 
-from .agent import Agent, MODEL
+from .agent import Agent
 
 BANNER = subprocess.check_output(["figlet", "KIWI - AGENT"], text=True)
 
 SLASH_COMMANDS = {
-    "/help": "Shows available commands",
+    "/help": "Shows available commands\n\n",
     "/clear": "Clear conversation memory (keeps personality)",
-    "/clear -a": "Clears all memory with the persona",
-    "/memory": "Shows current memory",
-    "/tools": "Shows available tools",
-    "/persona": "Shows personality of the agent",
-    "/scr -c": "Clears the screen",
+    "/clear -a": "Clears all memory with the persona\n",
+    "/memory": "Shows current memory\n",
+    "/tools": "Shows available tools\n",
+    "/persona": "Shows personality of the agent\n",
+    "/scr -c": "Clears the screen\n",
     "/todos": "Shows current todo list",
-    "/todo -c": "Clear all todos",
+    "/todo -c": "Clear all todos\n",
+    "/model -c":"Change the model starting with the index 0 -> type /model -c {index}",
+    "/models":"Show current models that are available"
 }
 
 BUSY_FACES = ["( ◕‿◕)", "( ◕ᴗ◕)", "(◕‿◕ )", "( ◕ᴗ◕)"]
@@ -184,8 +186,9 @@ class AgentApp(App):
         face = BUSY_FACES[self.busy_frame % len(BUSY_FACES)] if self.busy else "⚕"
         bar_filled = min(10, self.turn_count)
         bar = "█" * bar_filled + "░" * (10 - bar_filled)
+        model = self.agent.service.agent.current_model()
         return (
-            f"{face} [#DA3450]{MODEL}[/#DA3450]  │  "
+            f"{face} [#DA3450]{model}[/#DA3450]  │  "
             f"turns: {self.turn_count}  │  "
             f"[{bar}]  │  {elapsed_min:.0f}m"
         )
@@ -281,6 +284,28 @@ class AgentApp(App):
 
     def slash_commands(self, user_input: str) -> None:
         service = self.agent.service
+        command = user_input.strip().lower()
+
+
+        if command.startswith("/model -c "):
+            try:
+                num = int(command.split()[-1])
+
+                model = service.agent.change_model(num)
+
+                self._add_message(
+                    f"[bold #DA3450][✓][/bold #DA3450] Model changed to {model}"
+                )
+                self.query_one("#statusbar", Static).update(
+                    self._status_text()
+                )
+
+            except ValueError:
+                self._add_message(
+                    "[bold #DA3450][!][/bold #DA3450] Usage: /model -c <number>"
+                )
+
+            return
         match user_input.strip().lower():
             case "/help":
                 lines = [f"{cmd} — {desc}" for cmd, desc in SLASH_COMMANDS.items()]
@@ -309,6 +334,9 @@ class AgentApp(App):
             case "/todo -c":
                 service.todos.clear_todos()
                 self._add_message("[bold #DA3450][✓][/bold #DA3450] TODOS cleared")
+            case "/models":
+                models = service.agent.show_models()
+                self._add_message(f"[bold #DA3450][✓][/bold #DA3450]MODELS -> {models}")
             case _:
                 self._add_message(
                     f"[bold #DA3450]✓[/bold #DA3450] Unknown command {escape(user_input)}, try /help to see all commands"

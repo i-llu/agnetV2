@@ -6,6 +6,7 @@ from difflib import get_close_matches
 import subprocess
 
 PARENT_DIR = Path.cwd()
+SOUND_DIR = Path(__file__).parent.parent / "sounds"
 
 class FilesService:
   def __init__(self):
@@ -106,7 +107,7 @@ class FilesService:
     if not file_path.is_file():
         yield f"{path} is not a file"
         return
-    playsound("sounds/ter_sound.mp3")
+    playsound(f"{SOUND_DIR}/ter_sound.mp3")
     answer = yield f"Are you sure you want to delete {path}? (y/n)"
 
 

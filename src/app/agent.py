@@ -4,11 +4,6 @@ from ollama import chat
 from .toolsService import ToolsService
 from .tools_schema import tools
 
-MODEL = "qwen2.5:3b-instruct"
-
-#MODEL = "qwen3:4b"
-#MODEL = "isotnek/qwen3.5:9B-Unsloth-UD-Q4_K_XL"
-
 
 class Agent:
 
@@ -97,7 +92,7 @@ class Agent:
             start = time.perf_counter()
 
             response_stream = chat(
-                model=MODEL,
+                 model=self.service.agent.current_model(),
                 messages=memory,
                 tools=tools,
                 stream=True,
