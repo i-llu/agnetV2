@@ -85,7 +85,6 @@ class TextualAgentCallbacks:
 
 
 class AgentApp(App):
-    """Terminal UI styled after the Hermes Agent CLI, in light green."""
 
     CSS = """
     Screen {
