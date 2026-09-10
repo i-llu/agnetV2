@@ -126,3 +126,8 @@ agent/
 - [ ] Additional tool integrations
 - [ ] Real token usage tracking (currently mocked)
 
+
+
+## License
+
+This project is licensed under the terms in [AGPL-3.0-or-later](./LICENSE.txt).
