@@ -5,12 +5,10 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
-    "google-genai>=2.21.0",
-    "huggingface-hub>=1.29.0",
-    "matplotlib>=3.11.1",
     "ollama>=0.6.2",
     "playsound3>=3.3.2",
     "pydantic-settings>=2.15.0",
+    "requests>=2.34.2",
     "textual>=8.2.8",
 ]
 
