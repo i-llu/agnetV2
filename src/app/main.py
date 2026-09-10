@@ -4,7 +4,7 @@ from .agentService import AgentService
 import time
 from .tools import tools
 
-MODEL = "isotnek/qwen3.5:9B-Unsloth-UD-Q4_K_XL"
+MODEL = "qwen2.5:3b-instruct"
 service = ToolsService()
 
 SYSTEM_PROMPT = (
