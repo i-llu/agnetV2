@@ -91,7 +91,6 @@ agent/
 │   └── app/
 │       ├── main.py           # CLI entry point
 │       ├── agent.py          # Core agent loop and tool dispatch
-│       ├── config.py         # contains the SERPAPI_KEY for web research
 │       ├── toolsService.py   # Aggregates file/folder/shell/web/todo
 │       └── tools_schema.py   # Tool schema definitions passed to the model
 ├── pyproject.toml            # Project metadata and dependencies (uv)
